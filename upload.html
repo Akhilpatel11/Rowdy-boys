@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Image - PlantCare AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Analysing your plant image...</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21H5.71C6.87 18.31 8.83 15.32 12.73 13.07C11.88 14.4 11 15.98 10.37 18H12.16C13.25 14.93 15.61 12.07 19.34 10.14C18.88 9.06 18 8.39 17 8Z"/></svg>
+                </div>
+                <span>PlantCare AI</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/upload" class="btn-nav">Get Started</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Upload Section -->
+    <section class="upload-section">
+        <div class="container">
+            <div class="upload-container">
+
+                <div class="upload-title">
+                    <h1>Upload Plant Image</h1>
+                    <p>Take or upload a clear photo of the affected plant leaf</p>
+                </div>
+
+                <!-- Upload Box -->
+                <div class="upload-box" id="upload-box" onclick="document.getElementById('file-input').click()">
+                    <div class="upload-icon">⬆️</div>
+                    <h3>Drag & Drop Image Here</h3>
+                    <p>or click to browse from your device<br>Supported formats: JPG, JPEG, PNG (Max 16MB)</p>
+                    <button class="btn btn-primary" type="button" onclick="event.stopPropagation(); document.getElementById('file-input').click()">
+                        🖼️ Choose Image
+                    </button>
+                    <input type="file" id="file-input" accept=".jpg,.jpeg,.png" onchange="handleFileSelect(event)">
+                </div>
+
+                <!-- Preview Container -->
+                <div class="preview-container" id="preview-container">
+                    <img id="preview-image" src="" alt="Preview">
+                    <div class="preview-actions">
+                        <button class="btn btn-primary" onclick="analyseImage()">🔍 Analyse Disease</button>
+                        <button class="btn btn-outline" onclick="clearImage()">✕ Clear</button>
+                    </div>
+                    <div class="error-message" id="error-message"></div>
+                </div>
+
+                <!-- Tips -->
+                <div class="tips-box">
+                    <h4>📋 Tips for Best Results</h4>
+                    <div class="tips-grid">
+                        <div class="tip-item">Take photos in good lighting</div>
+                        <div class="tip-item">Focus on the affected leaf area</div>
+                        <div class="tip-item">Keep the camera steady</div>
+                        <div class="tip-item">Avoid blurry images</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-brand-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21H5.71C6.87 18.31 8.83 15.32 12.73 13.07C11.88 14.4 11 15.98 10.37 18H12.16C13.25 14.93 15.61 12.07 19.34 10.14C18.88 9.06 18 8.39 17 8Z"/></svg>
+                    </div>
+                    <div>
+                        <strong>Smart Bridge Hyderabad</strong>
+                        <p>Empowering agriculture through innovative AI solutions</p>
+                    </div>
+                </div>
+                <p>© 2025 Smart Bridge Hyderabad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let selectedFile = null;
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadFile(file);
+            }
+        }
+
+        function loadFile(file) {
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('Invalid file type. Please upload JPG, JPEG, or PNG.');
+                return;
+            }
+            if (file.size > 16 * 1024 * 1024) {
+                showError('File too large. Maximum size is 16MB.');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview-image').src = e.target.result;
+                document.getElementById('preview-container').style.display = 'block';
+                document.getElementById('upload-box').style.display = 'none';
+                hideError();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            selectedFile = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('preview-container').style.display = 'none';
+            document.getElementById('upload-box').style.display = 'block';
+            hideError();
+        }
+
+        function analyseImage() {
+            if (!selectedFile) {
+                showError('Please select an image first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            document.getElementById('loading-overlay').classList.add('active');
+            hideError();
+
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading-overlay').classList.remove('active');
+                if (data.success) {
+                    window.location.href = '/result';
+                } else {
+                    showError(data.error || 'An error occurred during analysis.');
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading-overlay').classList.remove('active');
+                showError('Network error. Please try again.');
+            });
+        }
+
+        function showError(message) {
+            const el = document.getElementById('error-message');
+            el.textContent = message;
+            el.classList.add('active');
+        }
+
+        function hideError() {
+            document.getElementById('error-message').classList.remove('active');
+        }
+
+        // Drag and drop
+        const uploadBox = document.getElementById('upload-box');
+
+        uploadBox.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', function() {
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) loadFile(file);
+        });
+    </script>
+
+</body>
+</html>
